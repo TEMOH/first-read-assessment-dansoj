@@ -1,13 +1,14 @@
 import { ref } from 'vue'
+import useRules from '@/utils/rules'
 
 export const useParser = ( ) => {
     
     const formattedFile = ref< string >( '' )
-    
-    const parseXML = ( xmlDocument: Document ) => {
-        console.log( 'here' )
-        let output = '';
+    const { isValidURL } = useRules();
 
+    const parseXML = ( xmlDocument: Document ) => {
+        let output = '';
+        
         const paragraphs = xmlDocument.getElementsByTagName( 'w:p' );
         for ( let p of paragraphs ) {
             let textContent = ''
@@ -16,9 +17,12 @@ export const useParser = ( ) => {
             let alignment = 'text-align: left;';
             
             const textNodes = p.getElementsByTagName( 'w:t' );
+            const hyperlinkNodes = p.getElementsByTagName('w:hyperlink');
             const boldNodes = p.getElementsByTagName( 'w:b' );
             const italicNodes = p.getElementsByTagName( 'w:i' );
             const underlineNodes = p.getElementsByTagName( 'w:u' );
+            const highlightNodes = p.getElementsByTagName('w:highlight');
+            const vertAlignNodes = p.getElementsByTagName('w:vertAlign');
             const styleNode = p.getElementsByTagName( 'w:pStyle' )[0];
             const listNode = p.getElementsByTagName( 'w:numPr' )[0];
             const alignNode = p.getElementsByTagName( 'w:jc' )[0];
@@ -48,16 +52,47 @@ export const useParser = ( ) => {
                     textStyle += 'font-weight: bold; margin-top: 1em;';
                 }
             }
+
+            // Handle text highlighting (background color)
+            if ( highlightNodes.length > 0 ) {
+                const highlightColor = highlightNodes[0].getAttribute('w:val') || 'yellow';
+                textStyle += `background-color: ${highlightColor};`;
+            }
+
+            // Handle superscript
+            for (let vertAlign of vertAlignNodes) {
+                const val = vertAlign.getAttribute('w:val');
+                if (val === 'superscript') {
+                    textStyle += 'vertical-align: super; font-size: 0.8em;';
+                }
+            }
+
         
             // Detect lists
             if ( listNode ) {
                 tag = 'li';
             }
+
+            // Handle Hyperlinks (Without `.rels`)
+            if (hyperlinkNodes.length > 0) {
+                for (let hyperlink of hyperlinkNodes) {
+                    const relId = hyperlink.getAttribute('r:id');
+                    let linkText = '';
+                    const linkTextNodes = hyperlink.getElementsByTagName('w:t');
+                    for (let lt of linkTextNodes) {
+                        linkText += lt.textContent + ' ';
+                    }
+          
+                    if (relId) {
+                        textContent = `<a href='${ isValidURL( linkText.trim() ) ? linkText.trim() : '#' }' target="_blank" class="doc-link">${linkText.trim()}</a>`;
+                    }
+                }
+            }
             
             if ( textContent.trim() ) {
                 output += `<${tag} style='${textStyle} ${alignment}'>${textContent.trim()}</${tag}>`;
             }
-            
+        
         }
 
         // Extract and format tables with styling
@@ -88,12 +123,26 @@ export const useParser = ( ) => {
             const blip = drawing.getElementsByTagName('a:blip')[0];
             if (blip) {
                 const imageUrl = blip.getAttribute('r:embed');
+                // imageUrl should be mapped to media file
                 if (imageUrl) {
                     output += `<img src='${imageUrl}' alt='Embedded Image' class='word-image' />`;
                 }
             }
         }
-        console.log( output )
+
+        // Extract footers
+        const footers = xmlDocument.getElementsByTagName('w:ftr');
+        let footerContent = '';
+        for ( let ftr of footers ) {
+            let textNodes = ftr.getElementsByTagName('w:t');
+            for ( let t of textNodes ) {
+                footerContent += t.textContent + ' ';
+            }
+            if ( footerContent.trim() ) {
+                output += `<footer class="doc-footer">${footerContent.trim()}</footer>`;
+            }
+        }
+
         formattedFile.value = output;
     }
 
