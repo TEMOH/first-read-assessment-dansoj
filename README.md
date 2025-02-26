@@ -20,7 +20,6 @@ The application follows a structured parsing approach to extract and format docu
    - **Headings (****`<w:pStyle>`****)**: Identifies and applies appropriate heading levels (e.g., `<h1>`, `<h2>`).
    - **Lists (****`<w:numPr>`****)**: Converts numbered and bulleted lists into `<ul>` or `<ol>` elements.
    - **Tables (****`<w:tbl>`****)**: Iterates through table rows (`<w:tr>`) and cells (`<w:tc>`) to generate an HTML `<table>`.
-   - **Images (****`<w:drawing>`**** / ****`<a:blip>`****)**: Extracts embedded image references and renders them in `<img>` tags.
    - **Hyperlinks (****`<w:hyperlink>`****)**: Identifies linked text and wraps it with an `<a>` tag.
    - **Text Alignment (****`<w:jc>`****)**: Applies CSS-based text alignment (`left`, `center`, `right`, `justify`).
 
@@ -36,25 +35,12 @@ The application follows a structured parsing approach to extract and format docu
 **Issue:** The extracted text did not initially retain its original formatting (e.g., bold, italics, and lists).
 **Solution:** Implemented a mapping system to convert Open XML styles into corresponding HTML elements with inline CSS.
 
-### 2. **Handling Page Breaks & Pagination**
 
-**Issue:** The page count from the Open XML document did not match the expected page count.
-**Solution:** Fine-tuned page break detection by accurately counting `<w:br w:type='page' />` elements and adjusting rendering accordingly.
-
-### 3. **Extracting and Displaying Tables**
+### 2. **Extracting and Displaying Tables**
 
 **Issue:** Word tables have nested structures that were not rendering correctly.
 **Solution:** Implemented a recursive function to correctly parse and convert nested table elements into a structured `<table>` format.
 
-### 4. **Image Handling & Extraction**
-
-**Issue:** Images referenced in the document were not appearing in the final output.
-**Solution:** Extracted image references using `<w:drawing>` tags and mapped them to their respective `rId` in the document's media folder.
-
-### 5. **Handling Large XML Documents**
-
-**Issue:** Parsing large documents led to UI lag and performance issues.
-**Solution:** Implemented asynchronous parsing using `requestAnimationFrame()` to improve performance and prevent UI blocking.
 
 ## Assumptions Made During Development
 

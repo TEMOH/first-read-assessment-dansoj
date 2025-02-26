@@ -1,153 +1,199 @@
-import { ref } from 'vue'
-import useRules from '@/utils/rules'
+import { ref, type Ref } from 'vue'
 
-export const useParser = ( ) => {
-    
-    const formattedFile = ref< string >( '' )
-    const { isValidURL } = useRules();
+interface UseOoxmlParserReturn {
+    formattedFile: Ref<string>;
+    parseXML: (xmlDocument: Document) => void;
+}
 
+interface Styles {
+    bold?: boolean;
+    italic?: boolean;
+    underline?: boolean;
+    color?: string;
+    fontSize?: string;
+    fontFamily?: string;
+    alignment?: string;
+}
+
+export const useParser = (): UseOoxmlParserReturn => {
+    // Reactive variable to store the converted HTML
+    const formattedFile = ref('')
+
+    // Function to parse the XML document and convert it to HTML
     const parseXML = ( xmlDocument: Document ) => {
-        let output = '';
-        
-        const paragraphs = xmlDocument.getElementsByTagName( 'w:p' );
-        for ( let p of paragraphs ) {
-            let textContent = ''
-            let textStyle = ''
-            let tag = 'p';
-            let alignment = 'text-align: left;';
-            
-            const textNodes = p.getElementsByTagName( 'w:t' );
-            const hyperlinkNodes = p.getElementsByTagName('w:hyperlink');
-            const boldNodes = p.getElementsByTagName( 'w:b' );
-            const italicNodes = p.getElementsByTagName( 'w:i' );
-            const underlineNodes = p.getElementsByTagName( 'w:u' );
-            const highlightNodes = p.getElementsByTagName('w:highlight');
-            const vertAlignNodes = p.getElementsByTagName('w:vertAlign');
-            const styleNode = p.getElementsByTagName( 'w:pStyle' )[0];
-            const listNode = p.getElementsByTagName( 'w:numPr' )[0];
-            const alignNode = p.getElementsByTagName( 'w:jc' )[0];
-            
-            for (let t of textNodes) {
-                textContent += t.textContent + ' ';
+        let currentListType: string | null = null;
+
+        // Function to apply styles to text
+        const applyStyles = ( textNode: Node, styles: Styles ) => {
+            let styledText = textNode.textContent
+
+            if (styles.bold) {
+                styledText = `<strong>${styledText}</strong>`
             }
-            
-            if ( boldNodes.length > 0 ) textStyle += 'font-weight: bold;';
-            if ( italicNodes.length > 0 ) textStyle += 'font-style: italic;';
-            if ( underlineNodes.length > 0 ) textStyle += 'text-decoration: underline;';
-            
-            // Detect text alignment
-            if ( alignNode ) {
-                const alignVal = alignNode.getAttribute( 'w:val' );
-                if ( alignVal === 'center' ) alignment = 'text-align: center;';
-                else if ( alignVal === 'right' ) alignment = 'text-align: right;';
-                else if ( alignVal === 'both' ) alignment = 'text-align: justify;';
+            if (styles.italic) {
+                styledText = `<em>${styledText}</em>`
             }
-            
-            // Detect headings
-            if ( styleNode ) {
-                const styleVal = styleNode.getAttribute( 'w:val' );
-                if ( styleVal?.includes( 'Heading' ) ) {
-                    const level = styleVal.replace('Heading', '');
-                    tag = `h${level}`;
-                    textStyle += 'font-weight: bold; margin-top: 1em;';
+            if (styles.underline) {
+                styledText = `<u>${styledText}</u>`
+            }
+            if (styles.color) {
+                styledText = `<span style='color: ${styles.color}'>${styledText}</span>`
+            }
+            if (styles.fontSize) {
+                styledText = `<span style='font-size: ${styles.fontSize}'>${styledText}</span>`;
+            }
+            if (styles.fontFamily) {
+                styledText = `<span style='font-family: ${styles.fontFamily}'>${styledText}</span>`;
+            }
+            if (styles.alignment) {
+                styledText = `<div style='text-align: ${styles.alignment}'>${styledText}</div>`;
+            }
+
+            return styledText
+        }
+
+        // Function to parse run properties ( styles )
+        const parseRunProperties = ( run: Element ):Styles => {
+            const styles: Styles = {}
+            const rPr = run.getElementsByTagName('w:rPr')[0]
+
+            if ( rPr ) {
+                if (rPr.getElementsByTagName('w:b').length > 0) {
+                    styles.bold = true
+                }
+                if (rPr.getElementsByTagName('w:i').length > 0) {
+                    styles.italic = true
+                }
+                if (rPr.getElementsByTagName('w:u').length > 0) {
+                    styles.underline = true
+                }
+                const colorNode = rPr.getElementsByTagName('w:color')[0]
+                if (colorNode && colorNode.getAttribute('w:val')) {
+                    styles.color = `#${colorNode.getAttribute('w:val')}`
+                }
+                const fontSizeNode = rPr.getElementsByTagName('w:sz')[0];
+                if (fontSizeNode && fontSizeNode.getAttribute('w:val')) {
+                    styles.fontSize = `${parseInt(fontSizeNode.getAttribute('w:val')!) / 2}pt`;
+                }
+                const fontFamilyNode = rPr.getElementsByTagName('w:rFonts')[0];
+                if (fontFamilyNode && fontFamilyNode.getAttribute('w:ascii')) {
+                    styles.fontFamily = fontFamilyNode.getAttribute('w:ascii')!;
                 }
             }
 
-            // Handle text highlighting (background color)
-            if ( highlightNodes.length > 0 ) {
-                const highlightColor = highlightNodes[0].getAttribute('w:val') || 'yellow';
-                textStyle += `background-color: ${highlightColor};`;
-            }
+            return styles
+        }
 
-            // Handle superscript
-            for (let vertAlign of vertAlignNodes) {
-                const val = vertAlign.getAttribute('w:val');
-                if (val === 'superscript') {
-                    textStyle += 'vertical-align: super; font-size: 0.8em;';
+        // Function to parse paragraph properties (alignment)
+        const parseParagraphProperties = ( paragraph: Element ): Styles => {
+            const styles: Styles = {};
+            const pPr = paragraph.getElementsByTagName('w:pPr')[0];
+    
+            if ( pPr ) {
+                const alignNode = pPr.getElementsByTagName('w:jc')[0];
+                if (alignNode && alignNode.getAttribute('w:val')) {
+                    styles.alignment = alignNode.getAttribute('w:val')!;
                 }
             }
+            return styles;
+        };
+  
 
-        
-            // Detect lists
-            if ( listNode ) {
-                tag = 'li';
-            }
+        // Function to convert XML nodes to HTML
+        const parseNode = ( node: Node ) => {
+            let html = ''
 
-            // Handle Hyperlinks (Without `.rels`)
-            if (hyperlinkNodes.length > 0) {
-                for (let hyperlink of hyperlinkNodes) {
-                    const relId = hyperlink.getAttribute('r:id');
-                    let linkText = '';
-                    const linkTextNodes = hyperlink.getElementsByTagName('w:t');
-                    for (let lt of linkTextNodes) {
-                        linkText += lt.textContent + ' ';
+            if (node.nodeName === "w:p" && node instanceof Element) {
+                const paragraphStyles = parseParagraphProperties(node);
+                const numPr = node.getElementsByTagName("w:numPr")[0];
+            
+                // Check if the paragraph is part of a list
+                if (numPr) {
+                    const ilvl = numPr.getElementsByTagName("w:ilvl")[0];
+                    const numId = numPr.getElementsByTagName("w:numId")[0];
+                    if (ilvl && numId) {
+                        const level = parseInt(ilvl.getAttribute("w:val")!);
+                        const listType = level === 0 ? "ul" : "ol"; // Use <ul> for level 0, <ol> for others
+
+                        // Start a new list if this is the first list item
+                        if (!currentListType) {
+                            currentListType = listType;
+                            html += `<${currentListType}>`;
+                        }
+
+                        html += "<li>";
+                        for (let child of Array.from(node.childNodes)) {
+                            if (child.nodeName === "w:r" && child instanceof Element) {
+                                const styles = parseRunProperties(child);
+                                for (let textNode of Array.from(child.childNodes)) {
+                                    if (textNode.nodeName === "w:t") {
+                                        html += applyStyles(textNode, styles);
+                                    }
+                                }
+                            }
+                        }
+                        html += "</li>";
+
+                        const nextSibling = node.nextElementSibling;
+
+                        if ( !nextSibling || !nextSibling.getElementsByTagName("w:numPr")[0] ) {
+                            html += `</${currentListType}>`;
+                            currentListType = null; // Reset the current list type
+                        }
+                        return html; // Return early for list items
                     }
-          
-                    if (relId) {
-                        textContent = `<a href='${ isValidURL( linkText.trim() ) ? linkText.trim() : '#' }' target="_blank" class="doc-link">${linkText.trim()}</a>`;
-                    }
                 }
-            }
             
-            if ( textContent.trim() ) {
-                output += `<${tag} style='${textStyle} ${alignment}'>${textContent.trim()}</${tag}>`;
-            }
-        
-        }
-
-        // Extract and format tables with styling
-        const tables = xmlDocument.getElementsByTagName( 'w:tbl' );
-        for (let table of tables) {
-            let tableHtml = '<table><tbody>';
-            const rows = table.getElementsByTagName('w:tr');
-            for (let row of rows) {
-                tableHtml += '<tr>';
-                const cells = row.getElementsByTagName('w:tc');
-                for ( let cell of cells ) {
-                    let cellText = '';
-                    const textNodes = cell.getElementsByTagName('w:t');
-                    for (let t of textNodes) {
-                        cellText += t.textContent + ' ';
+                // Handle regular paragraphs (not part of a list)
+                html += `<p style="text-align: ${paragraphStyles.alignment || "left"}">`;
+                for (let child of Array.from(node.childNodes)) {
+                    if (child.nodeName === "w:r" && child instanceof Element) {
+                        const styles = parseRunProperties(child);
+                        for (let textNode of Array.from(child.childNodes)) {
+                            if (textNode.nodeName === "w:t") {
+                                html += applyStyles(textNode, styles);
+                            }
+                        }
                     }
-                    tableHtml += `<td>${cellText.trim()}</td>`;
                 }
-                tableHtml += '</tr>';
+                html += "</p>";
             }
-            tableHtml += '</tbody></table>';
-            output += tableHtml;
-        }
 
-        // Extract images
-        const drawings = xmlDocument.getElementsByTagName('w:drawing');
-        for ( let drawing of drawings ) {
-            const blip = drawing.getElementsByTagName('a:blip')[0];
-            if (blip) {
-                const imageUrl = blip.getAttribute('r:embed');
-                // imageUrl should be mapped to media file
-                if (imageUrl) {
-                    output += `<img src='${imageUrl}' alt='Embedded Image' class='word-image' />`;
+            // Handle tables
+            if ( node.nodeName === 'w:tbl' && node instanceof Element ) {
+                html += "<table border='1'>"
+                for ( let row of Array.from( node.getElementsByTagName( 'w:tr' ) ) ) {
+                    html += '<tr>'
+                    for ( let cell of Array.from( row.getElementsByTagName('w:tc') ) ) {
+                        html += '<td>'
+                        for ( let para of Array.from( cell.getElementsByTagName('w:p') ) ) {
+                            html += parseNode( para )
+                        }
+                        html += '</td>'
+                    }
+                    html += '</tr>'
                 }
+                html += '</table>'
             }
+
+            return html
         }
 
-        // Extract footers
-        const footers = xmlDocument.getElementsByTagName('w:ftr');
-        let footerContent = '';
-        for ( let ftr of footers ) {
-            let textNodes = ftr.getElementsByTagName('w:t');
-            for ( let t of textNodes ) {
-                footerContent += t.textContent + ' ';
-            }
-            if ( footerContent.trim() ) {
-                output += `<footer class="doc-footer">${footerContent.trim()}</footer>`;
-            }
+        // Start parsing from the document body
+        const body = xmlDocument.getElementsByTagName('w:body')[0]
+        let html = '<html><head><title>Converted XML to HTML</title></head><body>'
+        for (const child of body.childNodes) {
+            html += parseNode(child)
         }
+        html += '</body></html>'
 
-        formattedFile.value = output;
+        // Update the reactive formattedFile
+        formattedFile.value = html
     }
 
+    // Return the reactive formattedFile and the parseXML function
     return {
         formattedFile,
-        parseXML
+        parseXML,
     }
 }
