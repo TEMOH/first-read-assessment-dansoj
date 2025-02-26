@@ -121,18 +121,23 @@ export const useParser = (): UseOoxmlParserReturn => {
                             html += `<${currentListType}>`;
                         }
 
-                        html += "<li>";
+                        // Extract text content from the paragraph
+                        let listItemContent = "";
                         for (let child of Array.from(node.childNodes)) {
                             if (child.nodeName === "w:r" && child instanceof Element) {
                                 const styles = parseRunProperties(child);
                                 for (let textNode of Array.from(child.childNodes)) {
                                     if (textNode.nodeName === "w:t") {
-                                        html += applyStyles(textNode, styles);
+                                        listItemContent += applyStyles(textNode, styles);
                                     }
                                 }
                             }
                         }
-                        html += "</li>";
+
+                        // Only add the list item if it has content
+                        if (listItemContent.trim()) {
+                            html += `<li>${listItemContent}</li>`;
+                        }
 
                         const nextSibling = node.nextElementSibling;
 
@@ -145,18 +150,22 @@ export const useParser = (): UseOoxmlParserReturn => {
                 }
             
                 // Handle regular paragraphs (not part of a list)
-                html += `<p style="text-align: ${paragraphStyles.alignment || "left"}">`;
+                let paragraphContent = '';
                 for (let child of Array.from(node.childNodes)) {
                     if (child.nodeName === "w:r" && child instanceof Element) {
                         const styles = parseRunProperties(child);
                         for (let textNode of Array.from(child.childNodes)) {
                             if (textNode.nodeName === "w:t") {
-                                html += applyStyles(textNode, styles);
+                                paragraphContent += applyStyles(textNode, styles);
                             }
                         }
                     }
                 }
-                html += "</p>";
+
+                // Only add the paragraph if it has content
+                if (paragraphContent.trim()) {
+                    html += `<p style="text-align: ${paragraphStyles.alignment || "left"}">${paragraphContent}</p>`;
+                }
             }
 
             // Handle tables
