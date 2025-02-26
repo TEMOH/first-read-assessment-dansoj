@@ -157,10 +157,9 @@ onBeforeUnmount( () => {
         li {
             margin-left: 20px;
         }
-        .word-image {
-            max-width: 100%;
-            height: auto;
-            margin: 10px 0;
+        
+        p {
+            margin-bottom: 10px;
         }
 
         &__empty {
