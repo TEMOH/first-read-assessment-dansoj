@@ -5,7 +5,7 @@
         :aria-busy="loading ? 'true' : 'false'"
         :aria-disabled="disabled ? 'true' : 'false'"
         :class="[
-            'button',
+            'base-button',
             buttonClasses
         ]"
         @click="handleClick"
@@ -48,9 +48,10 @@ const emits = defineEmits( [ 'click' ] );
 
 const buttonClasses = computed( () => {
     return [
-        `button--size-${props.size}`,
-        { 'button--variant-primary': props.variant === 'primary' },
-        { 'button--disabled': props.disabled || props.loading }
+        `base-button--size-${props.size}`,
+        { 'base-button--variant-primary': props.variant === 'primary' },
+        { 'base-button--block': props.block },
+        { 'base-button--disabled': props.disabled || props.loading }
     ]
 } );
 
@@ -65,12 +66,15 @@ const handleClick = ( event: Event ) => {
 </script>
 
 <style lang="scss">
-.button {
+.base-button {
     border: none;
     border-radius: 10px;
     color: white;
     cursor: pointer;
     transition: background 0.3s ease;
+    font-family: 'Montserrat', serif;
+    font-weight: 500;
+    box-shadow: 0 3px 6px 0 rgba(0,0,0,.14);
 
     &--variant {
         &-primary {
