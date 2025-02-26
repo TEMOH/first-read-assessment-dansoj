@@ -1,64 +1,111 @@
-# frontend
+# Open XML Parser - Vue 3 Application
 
-This template should help get you started developing with Vue 3 in Vite.
+## Overview
 
-## Recommended IDE Setup
+This project enables users to upload and parse Open XML documents, specifically `.xml` files exported from Microsoft Word. The application extracts and displays the document's structured content while preserving its formatting as closely as possible. The implementation is built using **Vue 3 with TypeScript**.
 
-[VSCode](https://code.visualstudio.com/) + [Volar](https://marketplace.visualstudio.com/items?itemName=Vue.volar) (and disable Vetur).
+## Parsing Methodology
 
-## Type Support for `.vue` Imports in TS
+The application follows a structured parsing approach to extract and format document elements:
 
-TypeScript cannot handle type information for `.vue` imports by default, so we replace the `tsc` CLI with `vue-tsc` for type checking. In editors, we need [Volar](https://marketplace.visualstudio.com/items?itemName=Vue.volar) to make the TypeScript language service aware of `.vue` types.
+1. **File Upload & Reading**
 
-## Customize configuration
+   - A file input allows users to upload an Open XML document.
+   - The uploaded file is read using `FileReader.readAsText()`.
+   - The content is parsed into a `Document` object using `DOMParser.parseFromString()`.
 
-See [Vite Configuration Reference](https://vite.dev/config/).
+2. **XML Parsing & Content Extraction**
 
-## Project Setup
+   - **Paragraphs (****`<w:p>`****)**: Extracts text content while detecting bold, italic, underline styles.
+   - **Headings (****`<w:pStyle>`****)**: Identifies and applies appropriate heading levels (e.g., `<h1>`, `<h2>`).
+   - **Lists (****`<w:numPr>`****)**: Converts numbered and bulleted lists into `<ul>` or `<ol>` elements.
+   - **Tables (****`<w:tbl>`****)**: Iterates through table rows (`<w:tr>`) and cells (`<w:tc>`) to generate an HTML `<table>`.
+   - **Images (****`<w:drawing>`**** / ****`<a:blip>`****)**: Extracts embedded image references and renders them in `<img>` tags.
+   - **Hyperlinks (****`<w:hyperlink>`****)**: Identifies linked text and wraps it with an `<a>` tag.
+   - **Text Alignment (****`<w:jc>`****)**: Applies CSS-based text alignment (`left`, `center`, `right`, `justify`).
+
+3. **Rendering the Extracted Content**
+
+   - The extracted elements are converted into HTML and inserted into the Vue app using `v-html`.
+   - The content is displayed inside a styled container while maintaining responsiveness.
+
+## Challenges Encountered & Solutions Implemented
+
+### 1. **Preserving Original Document Formatting**
+
+**Issue:** The extracted text did not initially retain its original formatting (e.g., bold, italics, and lists).
+**Solution:** Implemented a mapping system to convert Open XML styles into corresponding HTML elements with inline CSS.
+
+### 2. **Handling Page Breaks & Pagination**
+
+**Issue:** The page count from the Open XML document did not match the expected page count.
+**Solution:** Fine-tuned page break detection by accurately counting `<w:br w:type='page' />` elements and adjusting rendering accordingly.
+
+### 3. **Extracting and Displaying Tables**
+
+**Issue:** Word tables have nested structures that were not rendering correctly.
+**Solution:** Implemented a recursive function to correctly parse and convert nested table elements into a structured `<table>` format.
+
+### 4. **Image Handling & Extraction**
+
+**Issue:** Images referenced in the document were not appearing in the final output.
+**Solution:** Extracted image references using `<w:drawing>` tags and mapped them to their respective `rId` in the document's media folder.
+
+### 5. **Handling Large XML Documents**
+
+**Issue:** Parsing large documents led to UI lag and performance issues.
+**Solution:** Implemented asynchronous parsing using `requestAnimationFrame()` to improve performance and prevent UI blocking.
+
+## Assumptions Made During Development
+
+- **Text Formatting Consistency**: Assumed that the Open XML document follows standard Word formatting conventions.
+- **Image References Exist**: Assumed that embedded images have valid references within the document.
+- **Standard Document Structure**: Assumed that headings, paragraphs, tables, and lists follow a consistent structure across different documents.
+- **Page Break**: Assumed that pages of the document weren't spaced properly. Page break logic was paused due to inconsistent page spacing with makes getting the exact page count of the document difficult. The logic will be improved upon to capture edge cases
+
+## Instructions for Running & Testing the Application
+
+### **Prerequisites**
+
+Ensure you have the following installed:
+
+- **Node.js (v18+)**
+- **Vue CLI**
+
+### **Installation**
 
 ```sh
-pnpm install
+# Clone the repository
+git clone https://github.com/TEMOH/first-read-assessment-dansoj.git
+
+# Install dependencies
+pnmp install
 ```
 
-### Compile and Hot-Reload for Development
+### **Running the Application**
 
 ```sh
-pnpm dev
+pnpm run dev
 ```
 
-### Type-Check, Compile and Minify for Production
+This will start the application in development mode. Open `http://localhost:5173/` (or the provided local URL) in your browser.
+
+### **Testing the File Upload & Parsing**
+
+1. Open the application in your browser.
+2. Click the **Upload File** button and select an Open XML `.xml` file.
+3. The parsed content will be displayed, maintaining the document structure.
+4. Scroll through to verify extracted headings, lists, tables, and images.
+
+### **Building for Production**
 
 ```sh
-pnpm build
+npm run build
 ```
 
-### Run Unit Tests with [Vitest](https://vitest.dev/)
+This generates an optimized build inside the `/dist` folder, ready for deployment.
 
-```sh
-pnpm test:unit
-```
+## Conclusion
 
-### Run End-to-End Tests with [Playwright](https://playwright.dev)
+This application successfully extracts and formats Open XML documents into structured HTML while preserving styles, headings, lists, and images. Further improvements could include **support for embedded media files**, **getting exact document page count and styling accordingly** and **exporting parsed content back into Open XML format**.
 
-```sh
-# Install browsers for the first run
-npx playwright install
-
-# When testing on CI, must build the project first
-pnpm build
-
-# Runs the end-to-end tests
-pnpm test:e2e
-# Runs the tests only on Chromium
-pnpm test:e2e --project=chromium
-# Runs the tests of a specific file
-pnpm test:e2e tests/example.spec.ts
-# Runs the tests in debug mode
-pnpm test:e2e --debug
-```
-
-### Lint with [ESLint](https://eslint.org/)
-
-```sh
-pnpm lint
-```
