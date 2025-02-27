@@ -1,8 +1,9 @@
 import { ref, type Ref } from 'vue'
 
 interface UseOoxmlParserReturn {
-    formattedFile: Ref<string>;
-    parseXML: (xmlDocument: Document) => void;
+    formattedFile: Ref<string>
+    resetFile: () => void
+    parseXML: (xmlDocument: Document) => void
 }
 
 interface Styles {
@@ -123,10 +124,10 @@ export const useParser = (): UseOoxmlParserReturn => {
 
                         // Extract text content from the paragraph
                         let listItemContent = "";
-                        for (let child of Array.from(node.childNodes)) {
+                        for (const child of Array.from(node.childNodes)) {
                             if (child.nodeName === "w:r" && child instanceof Element) {
                                 const styles = parseRunProperties(child);
-                                for (let textNode of Array.from(child.childNodes)) {
+                                for (const textNode of Array.from(child.childNodes)) {
                                     if (textNode.nodeName === "w:t") {
                                         listItemContent += applyStyles(textNode, styles);
                                     }
@@ -151,10 +152,10 @@ export const useParser = (): UseOoxmlParserReturn => {
             
                 // Handle regular paragraphs (not part of a list)
                 let paragraphContent = '';
-                for (let child of Array.from(node.childNodes)) {
+                for (const child of Array.from(node.childNodes)) {
                     if (child.nodeName === "w:r" && child instanceof Element) {
                         const styles = parseRunProperties(child);
-                        for (let textNode of Array.from(child.childNodes)) {
+                        for (const textNode of Array.from(child.childNodes)) {
                             if (textNode.nodeName === "w:t") {
                                 paragraphContent += applyStyles(textNode, styles);
                             }
@@ -171,11 +172,11 @@ export const useParser = (): UseOoxmlParserReturn => {
             // Handle tables
             if ( node.nodeName === 'w:tbl' && node instanceof Element ) {
                 html += "<table border='1'>"
-                for ( let row of Array.from( node.getElementsByTagName( 'w:tr' ) ) ) {
+                for ( const row of Array.from( node.getElementsByTagName( 'w:tr' ) ) ) {
                     html += '<tr>'
-                    for ( let cell of Array.from( row.getElementsByTagName('w:tc') ) ) {
+                    for ( const cell of Array.from( row.getElementsByTagName('w:tc') ) ) {
                         html += '<td>'
-                        for ( let para of Array.from( cell.getElementsByTagName('w:p') ) ) {
+                        for ( const para of Array.from( cell.getElementsByTagName('w:p') ) ) {
                             html += parseNode( para )
                         }
                         html += '</td>'
@@ -200,9 +201,14 @@ export const useParser = (): UseOoxmlParserReturn => {
         formattedFile.value = html
     }
 
+    const resetFile = () => {
+        formattedFile.value = '';
+    }
+
     // Return the reactive formattedFile and the parseXML function
     return {
         formattedFile,
-        parseXML,
+        resetFile,
+        parseXML
     }
 }

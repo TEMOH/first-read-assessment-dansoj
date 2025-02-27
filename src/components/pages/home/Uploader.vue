@@ -17,7 +17,7 @@ import AtomButton from '@/components/atoms/Button.vue';
 
 const emits = defineEmits( [ 'uploaded:file'] );
 
-const fileInput = ref<HTMLInputElement | null>( null )
+const fileInput = ref<HTMLInputElement>( )
 
 const triggerFileInput = () => {
     fileInput.value?.click();
@@ -31,6 +31,12 @@ const handleFileUpload = ( e: Event ) => {
 
     emits( 'uploaded:file', file )
 }
+
+const resetFileUpload = () => {
+    ( fileInput.value as HTMLInputElement ).value = ''
+}
+
+defineExpose ( { resetFileUpload } )
 
 </script>
 

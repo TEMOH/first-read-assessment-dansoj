@@ -1,15 +1,20 @@
 <template>
     <div ref="contentDiv" class="home-page-content">
         <div  v-if="content" class="home-page-content__header">
-            <AtomIconDocument />
+            <DocumentIcon />
             <h3 class="home-page-content__header__title">{{ title }}</h3>
             <div class="home-page-content__header__actions">
                 <button @click="toggleTheme">
-                    <AtomIconSunShine v-if="isDarkMode" />
-                    <AtomIconMoonLight v-else />
+                    <SunShineIcon v-if="isDarkMode" />
+                    <MoonLightIcon v-else />
                 </button>
-                <button @click="toggleFullscreen">
-                    <AtomIconExpand />
+                <button
+                    @click="toggleFullscreen"
+                >
+                    <ExpandIcon />
+                </button>
+                <button title="Close Document" @click="clearContent">
+                    <CancelIcon style="color: red;" />
                 </button>
             </div>
         </div>
@@ -20,7 +25,7 @@
         >
             <div v-if="content" v-html="content" />
             <div v-else class="home-page-content__main__empty">
-                <AtomIconDocument />
+                <DocumentIcon />
                 <p>Uploaded file will be displayed here</p>
             </div>
         </div>
@@ -29,10 +34,17 @@
 
 <script lang="ts" setup>
 import { ref, onMounted, onBeforeUnmount } from 'vue';
-import AtomIconDocument from '@/components/atoms/icon/Document.vue';
-import AtomIconExpand from '@/components/atoms/icon/Expand.vue';
-import AtomIconSunShine from '@/components/atoms/icon/SunShine.vue';
-import AtomIconMoonLight from '@/components/atoms/icon/MoonLight.vue';
+import DocumentIcon from '@/assets/icons/Document.vue';
+import ExpandIcon from '@/assets/icons/Expand.vue';
+import SunShineIcon from '@/assets/icons/SunShine.vue';
+import MoonLightIcon from '@/assets/icons/MoonLight.vue';
+import CancelIcon from '@/assets/icons/Cancel.vue';
+
+interface FullscreenElement extends HTMLElement {
+    mozRequestFullScreen?: () => Promise<void>; // Firefox
+    webkitRequestFullscreen?: () => Promise<void>; // Chrome, Safari, Opera
+    msRequestFullscreen?: () => Promise<void>; // IE/Edge
+}
 
 defineProps( {
     content: {
@@ -45,22 +57,27 @@ defineProps( {
     }
 } );
 
-const contentDiv = ref<HTMLDivElement | null>(null);
+const emits = defineEmits( ['clearContent' ] )
+
+const contentDiv = ref<FullscreenElement | null>(null);
 const isDarkMode = ref<boolean>(false);
 
 const toggleFullscreen = () => {
     const contentDivElement = contentDiv.value;
+
     if ( document.fullscreenElement ) {
+        // Exit fullscreen if already in fullscreen mode
         document.exitFullscreen();
-    } else {
-        if (contentDivElement?.requestFullscreen) {
+    } else if ( contentDivElement ) {
+        // Request fullscreen for the contentDivElement
+        if ( contentDivElement.requestFullscreen ) {
             contentDivElement.requestFullscreen();
-        } else if ( ( contentDivElement as any )?.mozRequestFullScreen ) { // Firefox
-            ( contentDivElement as any ).mozRequestFullScreen();
-        } else if ( ( contentDivElement as any ).webkitRequestFullscreen ) { // Chrome, Safari and Opera
-            ( contentDivElement as any ).webkitRequestFullscreen();
-        } else if ( ( contentDivElement as any ).msRequestFullscreen ) { // IE/Edge
-            ( contentDivElement as any ).msRequestFullscreen();
+        } else if ( contentDivElement.mozRequestFullScreen ) {
+            contentDivElement.mozRequestFullScreen();
+        } else if ( contentDivElement.webkitRequestFullscreen ) {
+            contentDivElement.webkitRequestFullscreen();
+        } else if ( contentDivElement.msRequestFullscreen ) {
+            contentDivElement.msRequestFullscreen();
         }
     }
 };
@@ -74,6 +91,14 @@ const handleEscKey = ( event: KeyboardEvent ) => {
 const toggleTheme = () => {
     isDarkMode.value = !isDarkMode.value;
 };
+
+const clearContent = () => {
+    if( document.fullscreenElement ) {
+        toggleFullscreen()
+    }
+    isDarkMode.value = false;
+    emits( 'clearContent' )
+}
 
 onMounted( () => {
     window.addEventListener( 'keydown', handleEscKey );
