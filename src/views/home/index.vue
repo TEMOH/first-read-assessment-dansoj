@@ -3,6 +3,7 @@
         <div class="home-page__form">
             <PageHomeHeader />
             <PageHomeUploader
+                ref="uploaderRef"
                 @uploaded:file="setUploadedFile"
             />
         </div>
@@ -10,6 +11,7 @@
             class="home-page__content"
             :title="documentTitle"
             :content="formattedFile"
+            @clear-content="resetContent"
         />
     </div>
 </template>
@@ -21,9 +23,10 @@ import PageHomeUploader from '@/components/pages/home/Uploader.vue'
 import PageHomeContent from '@/components/pages/home/Content.vue'
 import { useParser } from '@/composables/useParser'
 
-const { formattedFile, parseXML } = useParser( )
+const { formattedFile, parseXML, resetFile } = useParser( )
 
 const documentTitle = ref< string >( '' )
+const uploaderRef = ref< InstanceType<typeof PageHomeUploader> >()
 
 const setUploadedFile = ( file: File ) => {
     documentTitle.value = file.name;
@@ -39,6 +42,11 @@ const setUploadedFile = ( file: File ) => {
     }
     reader.readAsText( file )
 };
+
+const resetContent = () => {
+    resetFile();
+    uploaderRef?.value?.resetFileUpload();
+}
 
 </script>
 

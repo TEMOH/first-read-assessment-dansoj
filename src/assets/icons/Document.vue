@@ -7,3 +7,9 @@
         <path d="M16 17H8"></path>
     </svg>
 </template>
+
+<script lang="ts">
+export default {
+    name: 'DocumentIcon'
+}
+</script>
